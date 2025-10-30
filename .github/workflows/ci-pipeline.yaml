@@ -39,11 +39,11 @@ jobs:
 
     env:
       SPRING_PROFILES_ACTIVE: docker
-      POSTGRES_URL: jdbc:postgresql://postgres:5432/marketplace
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: admin
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/marketplace
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: admin
+      SPRING_REDIS_HOST: localhost
+      SPRING_REDIS_PORT: 6379
       SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
@@ -65,6 +65,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
+      - name: Install dependencies for wait scripts
+        run: sudo apt update && sudo apt install -y postgresql-client redis-tools
+
       - name: Build project
         run: mvn clean package -DskipTests
 
@@ -72,14 +75,14 @@ jobs:
         run: |
           echo "Waiting for Postgres..."
           for i in {1..30}; do
-            pg_isready -h ${{ job.services.postgres.hostname }} -U postgres && break
+            pg_isready -h localhost -p 5432 -U postgres -q && break
             echo "Waiting for Postgres..."
             sleep 2
           done
 
           echo "Waiting for Redis..."
           for i in {1..30}; do
-            redis-cli -h ${{ job.services.redis.hostname }} ping | grep PONG && break
+            redis-cli -h localhost -p 6379 ping | grep -q PONG && break
             echo "Waiting for Redis..."
             sleep 2
           done
