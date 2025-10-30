@@ -91,7 +91,8 @@ jobs:
         run: mvn test
 
       - name: SonarQube analysis
-        run: mvn sonar:sonar \
+        run: |
+          mvn sonar:sonar \
           -Dsonar.projectKey=oldvabik_marketplace \
           -Dsonar.organization=oldvabik \
           -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
