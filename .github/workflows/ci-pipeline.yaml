@@ -24,18 +24,18 @@ jobs:
           POSTGRES_PASSWORD: admin
         options: >-
           --health-cmd="pg_isready -U postgres"
-          --health-interval=10s
+          --health-interval=5s
           --health-timeout=5s
-          --health-retries=5
+          --health-retries=20
       redis:
         image: redis:alpine
         ports:
           - 6379:6379
         options: >-
           --health-cmd="redis-cli ping"
-          --health-interval=10s
+          --health-interval=5s
           --health-timeout=5s
-          --health-retries=5
+          --health-retries=20
 
     env:
       SPRING_PROFILES_ACTIVE: docker
@@ -70,8 +70,19 @@ jobs:
 
       - name: Wait for Postgres and Redis
         run: |
-          until pg_isready -h postgres -U postgres; do sleep 1; done
-          until redis-cli -h redis ping | grep PONG; do sleep 1; done
+          echo "Waiting for Postgres..."
+          for i in {1..30}; do
+            pg_isready -h ${{ job.services.postgres.hostname }} -U postgres && break
+            echo "Waiting for Postgres..."
+            sleep 2
+          done
+
+          echo "Waiting for Redis..."
+          for i in {1..30}; do
+            redis-cli -h ${{ job.services.redis.hostname }} ping | grep PONG && break
+            echo "Waiting for Redis..."
+            sleep 2
+          done
 
       - name: Run tests
         run: mvn test
