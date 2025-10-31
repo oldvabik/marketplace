@@ -3,15 +3,14 @@ package org.oldvabik.marketplace.service;
 import org.oldvabik.marketplace.dto.UserCreateDto;
 import org.oldvabik.marketplace.dto.UserDto;
 import org.oldvabik.marketplace.dto.UserUpdateDto;
-
-import java.util.List;
+import org.springframework.data.domain.Page;
 
 public interface UserService {
     UserDto createUser(UserCreateDto dto);
 
     UserDto getUserById(Long id);
 
-    List<UserDto> getAllUsers(Integer page, Integer size);
+    Page<UserDto> getAllUsers(Integer page, Integer size);
 
     UserDto getUserByEmail(String email);
 

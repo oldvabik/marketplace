@@ -5,13 +5,13 @@ import org.oldvabik.marketplace.dto.CardInfoCreateDto;
 import org.oldvabik.marketplace.dto.CardInfoDto;
 import org.oldvabik.marketplace.dto.CardInfoUpdateDto;
 import org.oldvabik.marketplace.service.CardService;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
 
 @RestController
-@RequestMapping("/api/cards")
+@RequestMapping("/api/v1/cards")
 public class CardController {
     private final CardService cardService;
 
@@ -32,9 +32,9 @@ public class CardController {
     }
 
     @GetMapping
-    public ResponseEntity<List<CardInfoDto>> getAllCards(@RequestParam(defaultValue = "0") Integer page,
+    public ResponseEntity<Page<CardInfoDto>> getAllCards(@RequestParam(defaultValue = "0") Integer page,
                                                          @RequestParam(defaultValue = "5") Integer size) {
-        List<CardInfoDto> cards = cardService.getAllCards(page, size);
+        Page<CardInfoDto> cards = cardService.getAllCards(page, size);
         return new ResponseEntity<>(cards, HttpStatus.OK);
     }
 

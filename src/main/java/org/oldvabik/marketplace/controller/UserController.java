@@ -5,13 +5,13 @@ import org.oldvabik.marketplace.dto.UserCreateDto;
 import org.oldvabik.marketplace.dto.UserDto;
 import org.oldvabik.marketplace.dto.UserUpdateDto;
 import org.oldvabik.marketplace.service.UserService;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/v1/users")
 public class UserController {
     private final UserService userService;
 
@@ -32,9 +32,9 @@ public class UserController {
     }
 
     @GetMapping
-    public ResponseEntity<List<UserDto>> getUsers(@RequestParam(defaultValue = "0") Integer page,
+    public ResponseEntity<Page<UserDto>> getUsers(@RequestParam(defaultValue = "0") Integer page,
                                                   @RequestParam(defaultValue = "5") Integer size) {
-        List<UserDto> users = userService.getAllUsers(page, size);
+        Page<UserDto> users = userService.getAllUsers(page, size);
         return new ResponseEntity<>(users, HttpStatus.OK);
     }
 

@@ -82,7 +82,7 @@ public class UserServiceImplTest {
         when(userMapper.toDto(any())).thenReturn(new UserDto());
 
         var result = userService.getAllUsers(0, 10);
-        assertEquals(1, result.size());
+        assertEquals(1, result.getContent().size());
     }
 
     @Test

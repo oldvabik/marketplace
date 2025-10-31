@@ -17,7 +17,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.List;
 
 @Slf4j
 @Service
@@ -35,6 +34,7 @@ public class CardServiceImpl implements CardService {
     }
 
     @Override
+    @Transactional
     public CardInfoDto createCard(CardInfoCreateDto dto) {
         log.info("[CardService] createCard: userId={}, number={}", dto.getUserId(), dto.getNumber());
         User user = userRepository.findById(dto.getUserId())
@@ -70,12 +70,12 @@ public class CardServiceImpl implements CardService {
     }
 
     @Override
-    public List<CardInfoDto> getAllCards(Integer page, Integer size) {
+    public Page<CardInfoDto> getAllCards(Integer page, Integer size) {
         log.debug("[CardService] getAllCards: page={}, size={}", page, size);
         Pageable pageable = PageRequest.of(page, size);
         Page<CardInfo> cards = cardRepository.findAll(pageable);
         log.info("[CardService] getAllCards: fetched {} cards", cards.getContent().size());
-        return cards.map(cardMapper::toDto).getContent();
+        return cards.map(cardMapper::toDto);
     }
 
     @Override

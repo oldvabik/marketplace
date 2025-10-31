@@ -1,12 +1,8 @@
 spring:
-  config:
-    activate:
-      on-profile: docker
-
   datasource:
-    url: jdbc:postgresql://postgres:5432/marketplace
-    username: postgres
-    password: admin
+    url: ${POSTGRES_URL_DOCKER}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   data:

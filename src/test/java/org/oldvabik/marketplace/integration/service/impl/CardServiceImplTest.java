@@ -11,13 +11,13 @@ import org.oldvabik.marketplace.service.CardService;
 import org.oldvabik.marketplace.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Page;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import java.time.LocalDate;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -122,8 +122,8 @@ class CardServiceImplTest {
         cardService.createCard(cardCreateDto(user.getId(), "card1"));
         cardService.createCard(cardCreateDto(user.getId(), "card2"));
 
-        List<CardInfoDto> list = cardService.getAllCards(0, 10);
-        assertEquals(2, list.size());
+        Page<CardInfoDto> page = cardService.getAllCards(0, 10);
+        assertEquals(2, page.getContent().size());
     }
 
     @Test

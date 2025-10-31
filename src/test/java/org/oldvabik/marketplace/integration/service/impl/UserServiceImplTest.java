@@ -4,6 +4,7 @@ import org.junit.jupiter.api.*;
 import org.oldvabik.marketplace.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Page;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -16,7 +17,6 @@ import org.oldvabik.marketplace.exception.AlreadyExistsException;
 import org.oldvabik.marketplace.exception.NotFoundException;
 import org.oldvabik.marketplace.repository.UserRepository;
 import java.time.LocalDate;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -116,9 +116,9 @@ class UserServiceImplTest {
         user2.setBirthDate(LocalDate.of(1991, 2, 2));
         userRepository.save(user2);
 
-        List<UserDto> list = userService.getAllUsers(0, 10);
+        Page<UserDto> page = userService.getAllUsers(0, 10);
 
-        assertEquals(2, list.size());
+        assertEquals(2, page.getContent().size());
     }
 
     @Test

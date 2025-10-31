@@ -1,12 +1,8 @@
 spring:
-  config:
-    activate:
-      on-profile: local
-
   datasource:
-    url: jdbc:postgresql://localhost:5432/marketplace
-    username: postgres
-    password: admin
+    url: ${POSTGRES_URL_LOCAL}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   data:

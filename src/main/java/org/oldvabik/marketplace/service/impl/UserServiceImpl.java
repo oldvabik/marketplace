@@ -18,7 +18,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.List;
 
 @Slf4j
 @Service
@@ -32,6 +31,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public UserDto createUser(UserCreateDto dto) {
         log.info("[UserService] createUser: email={}", dto.getEmail());
         userRepository.findByEmail(dto.getEmail()).ifPresent(u -> {
@@ -59,12 +59,12 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public List<UserDto> getAllUsers(Integer page, Integer size) {
+    public Page<UserDto> getAllUsers(Integer page, Integer size) {
         log.debug("[UserService] getAllUsers: page={}, size={}", page, size);
         Pageable pageable = PageRequest.of(page, size);
         Page<User> users = userRepository.findAllWithCards(pageable);
         log.info("[UserService] getAllUsers: fetched {} users", users.getContent().size());
-        return users.map(userMapper::toDto).getContent();
+        return users.map(userMapper::toDto);
     }
 
     @Override

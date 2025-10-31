@@ -92,7 +92,7 @@ public class CardServiceImplTest {
         when(cardMapper.toDto(any(CardInfo.class))).thenReturn(new CardInfoDto());
 
         var result = cardService.getAllCards(0, 10);
-        assertEquals(1, result.size());
+        assertEquals(1, result.getContent().size());
     }
 
 
