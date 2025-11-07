@@ -8,6 +8,7 @@ import org.oldvabik.userservice.service.CardService;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -19,18 +20,21 @@ public class CardController {
         this.cardService = cardService;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<CardInfoDto> createCard(@Valid @RequestBody CardInfoCreateDto dto) {
         CardInfoDto createdCard = cardService.createCard(dto);
         return new ResponseEntity<>(createdCard, HttpStatus.CREATED);
     }
 
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<CardInfoDto> getCardById(@PathVariable Long id) {
         CardInfoDto card = cardService.getCardById(id);
         return new ResponseEntity<>(card, HttpStatus.OK);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<Page<CardInfoDto>> getAllCards(@RequestParam(defaultValue = "0") Integer page,
                                                          @RequestParam(defaultValue = "5") Integer size) {
@@ -38,6 +42,7 @@ public class CardController {
         return new ResponseEntity<>(cards, HttpStatus.OK);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<CardInfoDto> updateCard(@PathVariable Long id,
                                                   @Valid @RequestBody CardInfoUpdateDto dto) {
@@ -45,6 +50,7 @@ public class CardController {
         return new ResponseEntity<>(updatedCard, HttpStatus.OK);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCard(@PathVariable Long id) {
         cardService.deleteCard(id);
