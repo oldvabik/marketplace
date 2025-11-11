@@ -30,4 +30,9 @@ public class User {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private List<CardInfo> cards = new ArrayList<>();
+
+    public void removeCard(CardInfo card) {
+        cards.remove(card);
+        card.setUser(null);
+    }
 }

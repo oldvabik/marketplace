@@ -11,16 +11,17 @@ import org.oldvabik.userservice.mapper.UserMapper;
 import org.oldvabik.userservice.repository.UserRepository;
 import org.oldvabik.userservice.security.AccessChecker;
 import org.oldvabik.userservice.service.UserService;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -28,13 +29,16 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final AccessChecker accessChecker;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     public UserServiceImpl(UserRepository userRepository,
                            UserMapper userMapper,
-                           AccessChecker accessChecker) {
+                           AccessChecker accessChecker,
+                           RedisTemplate<String, Object> redisTemplate) {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
         this.accessChecker = accessChecker;
+        this.redisTemplate = redisTemplate;
     }
 
     @Override
@@ -133,7 +137,6 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "users", allEntries = true)
     public void deleteUser(Long id) {
         log.info("[UserService] deleteUser: id={}", id);
         User user = userRepository.findById(id)
@@ -141,7 +144,29 @@ public class UserServiceImpl implements UserService {
                     log.warn("[UserService] deleteUser: user not found id={}", id);
                     return new NotFoundException("user with id " + id + " not found");
                 });
+
+        String email = user.getEmail();
+
         userRepository.delete(user);
         log.info("[UserService] deleteUser: deleted id={}", id);
+
+        deleteUserCache(id, email);
+    }
+
+    private void deleteUserCache(Long id, String email) {
+        String patternId = id + "_*";
+        String patternEmail = email + "_*";
+
+        Set<String> keysId = redisTemplate.keys("users::" + patternId);
+        if (!keysId.isEmpty()) {
+            redisTemplate.delete(keysId);
+            log.info("[UserService] deleteUserCache: deleted {} keys for id={}", keysId.size(), id);
+        }
+
+        Set<String> keysEmail = redisTemplate.keys("users::" + patternEmail);
+        if (!keysEmail.isEmpty()) {
+            redisTemplate.delete(keysEmail);
+            log.info("[UserService] deleteUserCache: deleted {} keys for email={}", keysEmail.size(), email);
+        }
     }
 }
