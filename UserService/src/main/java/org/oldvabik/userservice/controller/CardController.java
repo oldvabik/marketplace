@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,17 +21,19 @@ public class CardController {
         this.cardService = cardService;
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @PostMapping
-    public ResponseEntity<CardInfoDto> createCard(@Valid @RequestBody CardInfoCreateDto dto) {
-        CardInfoDto createdCard = cardService.createCard(dto);
+    public ResponseEntity<CardInfoDto> createCard(Authentication auth,
+                                                  @Valid @RequestBody CardInfoCreateDto dto) {
+        CardInfoDto createdCard = cardService.createCard(auth, dto);
         return new ResponseEntity<>(createdCard, HttpStatus.CREATED);
     }
 
-    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @GetMapping("/{id}")
-    public ResponseEntity<CardInfoDto> getCardById(@PathVariable Long id) {
-        CardInfoDto card = cardService.getCardById(id);
+    public ResponseEntity<CardInfoDto> getCardById(Authentication auth,
+                                                   @PathVariable Long id) {
+        CardInfoDto card = cardService.getCardById(auth, id);
         return new ResponseEntity<>(card, HttpStatus.OK);
     }
 
@@ -42,18 +45,20 @@ public class CardController {
         return new ResponseEntity<>(cards, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @PutMapping("/{id}")
-    public ResponseEntity<CardInfoDto> updateCard(@PathVariable Long id,
+    public ResponseEntity<CardInfoDto> updateCard(Authentication auth,
+                                                  @PathVariable Long id,
                                                   @Valid @RequestBody CardInfoUpdateDto dto) {
-        CardInfoDto updatedCard = cardService.updateCard(id, dto);
+        CardInfoDto updatedCard = cardService.updateCard(auth, id, dto);
         return new ResponseEntity<>(updatedCard, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCard(@PathVariable Long id) {
-        cardService.deleteCard(id);
+    public ResponseEntity<Void> deleteCard(Authentication auth,
+                                           @PathVariable Long id) {
+        cardService.deleteCard(auth, id);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 }

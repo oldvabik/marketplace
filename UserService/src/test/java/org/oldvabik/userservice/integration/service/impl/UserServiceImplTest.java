@@ -1,24 +1,28 @@
 package org.oldvabik.userservice.integration.service.impl;
 
 import org.junit.jupiter.api.*;
-import org.oldvabik.userservice.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.data.domain.Page;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import org.oldvabik.userservice.dto.*;
 import org.oldvabik.userservice.entity.User;
 import org.oldvabik.userservice.exception.AlreadyExistsException;
 import org.oldvabik.userservice.exception.NotFoundException;
 import org.oldvabik.userservice.repository.UserRepository;
+import org.oldvabik.userservice.security.AccessChecker;
+import org.oldvabik.userservice.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.Page;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.security.core.Authentication;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 @Testcontainers
 @SpringBootTest
@@ -44,9 +48,17 @@ class UserServiceImplTest {
     @Autowired
     private UserRepository userRepository;
 
+    @MockBean
+    private AccessChecker accessChecker;
+
+    private Authentication auth;
+
     @BeforeEach
-    void cleanDb() {
+    void setUp() {
         userRepository.deleteAll();
+        auth = mock(Authentication.class);
+        when(auth.getName()).thenReturn("test@example.com");
+        when(accessChecker.canAccessUser(any(Authentication.class), any())).thenReturn(true);
     }
 
     @Test
@@ -90,14 +102,14 @@ class UserServiceImplTest {
         user.setBirthDate(LocalDate.of(1990, 1, 1));
         User saved = userRepository.save(user);
 
-        UserDto dto = userService.getUserById(saved.getId());
+        UserDto dto = userService.getUserById(auth, saved.getId());
 
         assertEquals("get@example.com", dto.getEmail());
     }
 
     @Test
     void getUserById_notFound() {
-        assertThrows(NotFoundException.class, () -> userService.getUserById(999L));
+        assertThrows(NotFoundException.class, () -> userService.getUserById(auth, 999L));
     }
 
     @Test
@@ -130,14 +142,14 @@ class UserServiceImplTest {
         user.setBirthDate(LocalDate.of(1990, 1, 1));
         userRepository.save(user);
 
-        UserDto dto = userService.getUserByEmail("email@test.com");
+        UserDto dto = userService.getUserByEmail(auth, "email@test.com");
 
         assertEquals("email@test.com", dto.getEmail());
     }
 
     @Test
     void getUserByEmail_notFound() {
-        assertThrows(NotFoundException.class, () -> userService.getUserByEmail("notfound@test.com"));
+        assertThrows(NotFoundException.class, () -> userService.getUserByEmail(auth, "notfound@test.com"));
     }
 
     @Test
@@ -150,36 +162,15 @@ class UserServiceImplTest {
         User saved = userRepository.save(user);
 
         UserUpdateDto dto = new UserUpdateDto();
-        dto.setEmail("new@test.com");
         dto.setName("New");
-        dto.setSurname("Name");
+        dto.setSurname("NameUpdated");
+        dto.setBirthDate(LocalDate.of(1991, 2, 2));
 
-        UserDto updated = userService.updateUser(saved.getId(), dto);
+        UserDto updated = userService.updateUser(auth, saved.getId(), dto);
 
-        assertEquals("new@test.com", updated.getEmail());
         assertEquals("New", updated.getName());
-    }
-
-    @Test
-    void updateUser_emailConflict_throwsException() {
-        User user1 = new User();
-        user1.setEmail("user1@example.com");
-        user1.setName("User");
-        user1.setSurname("One");
-        user1.setBirthDate(LocalDate.of(1990, 1, 1));
-        User savedUser1 = userRepository.save(user1);
-
-        User user2 = new User();
-        user2.setEmail("user2@example.com");
-        user2.setName("User");
-        user2.setSurname("Two");
-        user2.setBirthDate(LocalDate.of(1991, 2, 2));
-        userRepository.save(user2);
-
-        UserUpdateDto dto = new UserUpdateDto();
-        dto.setEmail("user2@example.com");
-
-        assertThrows(AlreadyExistsException.class, () -> userService.updateUser(savedUser1.getId(), dto));
+        assertEquals("NameUpdated", updated.getSurname());
+        assertEquals(LocalDate.of(1991, 2, 2), updated.getBirthDate());
     }
 
     @Test

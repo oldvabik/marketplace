@@ -9,14 +9,19 @@ import org.oldvabik.userservice.entity.User;
 import org.oldvabik.userservice.exception.AlreadyExistsException;
 import org.oldvabik.userservice.exception.NotFoundException;
 import org.oldvabik.userservice.mapper.CardMapper;
+import org.oldvabik.userservice.mapper.UserMapper;
 import org.oldvabik.userservice.repository.CardRepository;
 import org.oldvabik.userservice.repository.UserRepository;
+import org.oldvabik.userservice.security.AccessChecker;
 import org.oldvabik.userservice.service.CardService;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,28 +31,36 @@ public class CardServiceImpl implements CardService {
     private final CardRepository cardRepository;
     private final UserRepository userRepository;
     private final CardMapper cardMapper;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final UserMapper userMapper;
+    private final AccessChecker accessChecker;
 
     public CardServiceImpl(CardRepository cardRepository,
                            UserRepository userRepository,
                            CardMapper cardMapper,
-                           RedisTemplate<String, Object> redisTemplate) {
+                           UserMapper userMapper,
+                           AccessChecker accessChecker) {
         this.cardRepository = cardRepository;
         this.userRepository = userRepository;
         this.cardMapper = cardMapper;
-        this.redisTemplate = redisTemplate;
+        this.userMapper = userMapper;
+        this.accessChecker = accessChecker;
     }
 
     @Override
     @Transactional
-    @CacheEvict(value = "users", key = "#dto.userId")
-    public CardInfoDto createCard(CardInfoCreateDto dto) {
+    @CacheEvict(value = "users", key = "#dto.userId + '_' + #auth.name")
+    public CardInfoDto createCard(Authentication auth, CardInfoCreateDto dto) {
         log.info("[CardService] createCard: userId={}, number={}", dto.getUserId(), dto.getNumber());
         User user = userRepository.findById(dto.getUserId())
                 .orElseThrow(() -> {
                     log.warn("[CardService] createCard: user not found userId={}", dto.getUserId());
                     return new NotFoundException("user with id " + dto.getUserId() + " not found");
                 });
+
+        if (!accessChecker.canAccessUser(auth, userMapper.toDto(user))) {
+            log.warn("[CardService] createCard: access denied for user {}", auth.getName());
+            throw new AccessDeniedException("Access denied");
+        }
 
         cardRepository.findByNumber(dto.getNumber()).ifPresent(c -> {
             log.warn("[CardService] createCard: card number={} already exists", dto.getNumber());
@@ -58,22 +71,26 @@ public class CardServiceImpl implements CardService {
         card.setUser(user);
         card.setHolder(user.getName() + " " + user.getSurname());
 
-        redisTemplate.delete("users::" + user.getId());
-        redisTemplate.delete("users::" + user.getEmail());
-
         CardInfo saved = cardRepository.save(card);
         log.info("[CardService] createCard: created id={}", saved.getId());
         return cardMapper.toDto(saved);
     }
 
     @Override
-    public CardInfoDto getCardById(Long id) {
+    @Cacheable(value = "cards", key = "#id + '_' + #auth.name")
+    public CardInfoDto getCardById(Authentication auth, Long id) {
         log.debug("[CardService] getCardById: id={}", id);
         CardInfo card = cardRepository.findById(id)
                 .orElseThrow(() -> {
                     log.warn("[CardService] getCardById: not found id={}", id);
                     return new NotFoundException("card with id " + id + " not found");
                 });
+
+        if (!accessChecker.canAccessUser(auth, userMapper.toDto(card.getUser()))) {
+            log.warn("[CardService] getCardById: access denied for user {}", auth.getName());
+            throw new AccessDeniedException("Access denied");
+        }
+
         log.info("[CardService] getCardById: found id={}", id);
         return cardMapper.toDto(card);
     }
@@ -89,13 +106,19 @@ public class CardServiceImpl implements CardService {
 
     @Override
     @Transactional
-    public CardInfoDto updateCard(Long id, CardInfoUpdateDto dto) {
+    @CachePut(value = "cards", key = "#id + '_' + #auth.name")
+    public CardInfoDto updateCard(Authentication auth, Long id, CardInfoUpdateDto dto) {
         log.info("[CardService] updateCard: id={}", id);
         CardInfo card = cardRepository.findById(id)
                 .orElseThrow(() -> {
                     log.warn("[CardService] updateCard: not found id={}", id);
                     return new NotFoundException("card with id " + id + " not found");
                 });
+
+        if (!accessChecker.canAccessUser(auth, userMapper.toDto(card.getUser()))) {
+            log.warn("[CardService] updateCard: access denied for user {}", auth.getName());
+            throw new AccessDeniedException("Access denied");
+        }
 
         if (dto.getNumber() != null && !dto.getNumber().equals(card.getNumber())) {
             cardRepository.findByNumber(dto.getNumber()).ifPresent(c -> {
@@ -107,17 +130,14 @@ public class CardServiceImpl implements CardService {
         cardMapper.updateEntityFromDto(dto, card);
         CardInfo saved = cardRepository.save(card);
 
-        User user = card.getUser();
-        redisTemplate.delete("users::" + user.getId());
-        redisTemplate.delete("users::" + user.getEmail());
-
         log.info("[CardService] updateCard: updated id={}", saved.getId());
         return cardMapper.toDto(saved);
     }
 
     @Override
     @Transactional
-    public void deleteCard(Long id) {
+    @CacheEvict(value = "cards", allEntries = true)
+    public void deleteCard(Authentication auth, Long id) {
         log.info("[CardService] deleteCard: id={}", id);
         CardInfo card = cardRepository.findById(id)
                 .orElseThrow(() -> {
@@ -125,9 +145,10 @@ public class CardServiceImpl implements CardService {
                     return new NotFoundException("card with id " + id + " not found");
                 });
 
-        User user = card.getUser();
-        redisTemplate.delete("users::" + user.getId());
-        redisTemplate.delete("users::" + user.getEmail());
+        if (!accessChecker.canAccessUser(auth, userMapper.toDto(card.getUser()))) {
+            log.warn("[CardService] deleteCard: access denied for user {}", auth.getName());
+            throw new AccessDeniedException("Access denied");
+        }
 
         cardRepository.delete(card);
         log.info("[CardService] deleteCard: deleted id={}", id);

@@ -1,5 +1,6 @@
 package org.oldvabik.authservice.dto;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -15,8 +16,9 @@ import org.oldvabik.authservice.entity.Role;
 @Builder
 public class RegisterRequest {
     @NotBlank
-    @Size(min = 1, max = 50)
-    private String username;
+    @Email
+    @Size(min = 8, max = 32)
+    private String email;
 
     @NotBlank
     @Size(min = 6)

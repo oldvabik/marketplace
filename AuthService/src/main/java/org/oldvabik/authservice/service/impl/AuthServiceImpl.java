@@ -33,19 +33,19 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse login(AuthRequest request) {
-        Credential user = credentialRepository.findByUsername(request.getUsername())
+        Credential user = credentialRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new BadRequestException("Invalid credentials");
         }
 
-        String access = jwtProvider.generateToken(user.getUsername(), user.getRole().name());
-        String refresh = jwtProvider.generateRefreshToken(user.getUsername());
+        String access = jwtProvider.generateToken(user.getEmail(), user.getRole().name());
+        String refresh = jwtProvider.generateRefreshToken(user.getEmail());
 
-        refreshTokenRepository.deleteByUsername(user.getUsername());
+        refreshTokenRepository.deleteByEmail(user.getEmail());
         refreshTokenRepository.save(RefreshToken.builder()
-                .username(user.getUsername())
+                .email(user.getEmail())
                 .token(refresh)
                 .build());
 
@@ -66,16 +66,16 @@ public class AuthServiceImpl implements AuthService {
         RefreshToken token = refreshTokenRepository.findByToken(request.getRefreshToken())
                 .orElseThrow(() -> new BadRequestException("Invalid refresh token"));
 
-        String username = token.getUsername();
-        Credential user = credentialRepository.findByUsername(username)
+        String email = token.getEmail();
+        Credential user = credentialRepository.findByEmail(email)
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
         if (!jwtProvider.validateRawToken(request.getRefreshToken())) {
             throw new TokenValidationException("Expired or invalid refresh token");
         }
 
-        String newAccess = jwtProvider.generateToken(username, user.getRole().name());
-        String newRefresh = jwtProvider.generateRefreshToken(username);
+        String newAccess = jwtProvider.generateToken(email, user.getRole().name());
+        String newRefresh = jwtProvider.generateRefreshToken(email);
 
         token.setToken(newRefresh);
         refreshTokenRepository.save(token);
@@ -85,7 +85,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void register(RegisterRequest request) {
-        if (credentialRepository.findByUsername(request.getUsername()).isPresent()) {
+        if (credentialRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new AlreadyExistsException("User already exists");
         }
 
@@ -94,7 +94,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         Credential credential = Credential.builder()
-                .username(request.getUsername())
+                .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(request.getRole())
                 .build();

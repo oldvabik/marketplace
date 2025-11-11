@@ -4,15 +4,16 @@ import org.oldvabik.userservice.dto.CardInfoCreateDto;
 import org.oldvabik.userservice.dto.CardInfoDto;
 import org.oldvabik.userservice.dto.CardInfoUpdateDto;
 import org.springframework.data.domain.Page;
+import org.springframework.security.core.Authentication;
 
 public interface CardService {
-    CardInfoDto createCard(CardInfoCreateDto dto);
+    CardInfoDto createCard(Authentication auth, CardInfoCreateDto dto);
 
-    CardInfoDto getCardById(Long id);
+    CardInfoDto getCardById(Authentication auth, Long id);
 
     Page<CardInfoDto> getAllCards(Integer page, Integer size);
 
-    CardInfoDto updateCard(Long id, CardInfoUpdateDto dto);
+    CardInfoDto updateCard(Authentication auth, Long id, CardInfoUpdateDto dto);
 
-    void deleteCard(Long id);
+    void deleteCard(Authentication auth, Long id);
 }

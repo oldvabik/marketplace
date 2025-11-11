@@ -9,6 +9,7 @@ import org.oldvabik.userservice.exception.AlreadyExistsException;
 import org.oldvabik.userservice.exception.NotFoundException;
 import org.oldvabik.userservice.mapper.UserMapper;
 import org.oldvabik.userservice.repository.UserRepository;
+import org.oldvabik.userservice.security.AccessChecker;
 import org.oldvabik.userservice.service.UserService;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
@@ -16,6 +17,8 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,10 +27,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final AccessChecker accessChecker;
 
-    public UserServiceImpl(UserRepository userRepository, UserMapper userMapper) {
+    public UserServiceImpl(UserRepository userRepository,
+                           UserMapper userMapper,
+                           AccessChecker accessChecker) {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
+        this.accessChecker = accessChecker;
     }
 
     @Override
@@ -46,14 +53,21 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Cacheable(value = "users", key = "#id")
-    public UserDto getUserById(Long id) {
+    @Cacheable(value = "users", key = "#id + '_' + #auth.name")
+    public UserDto getUserById(Authentication auth, Long id) {
         log.debug("[UserService] getUserById: id={}", id);
         User user = userRepository.findByIdWithCards(id)
                 .orElseThrow(() -> {
                     log.warn("[UserService] getUserById: user not found id={}", id);
                     return new NotFoundException("user with id " + id + " not found");
                 });
+
+        UserDto dto = userMapper.toDto(user);
+        if (!accessChecker.canAccessUser(auth, dto)) {
+            log.warn("[UserService] getUserById: access denied for email={}", auth.getName());
+            throw new AccessDeniedException("Access denied");
+        }
+
         log.info("[UserService] getUserById: found id={}", id);
         return userMapper.toDto(user);
     }
@@ -68,22 +82,29 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Cacheable(value = "users", key = "#email")
-    public UserDto getUserByEmail(String email) {
+    @Cacheable(value = "users", key = "#email + '_' + #auth.name")
+    public UserDto getUserByEmail(Authentication auth, String email) {
         log.debug("[UserService] getUserByEmail: email={}", email);
         User user = userRepository.findByEmailWithCards(email)
                 .orElseThrow(() -> {
                     log.warn("[UserService] getUserByEmail: user not found email={}", email);
                     return new NotFoundException("user with email " + email + " not found");
                 });
+
+        UserDto dto = userMapper.toDto(user);
+        if (!accessChecker.canAccessUser(auth, dto)) {
+            log.warn("[UserService] getUserByEmail: access denied for email={}", auth.getName());
+            throw new AccessDeniedException("Access denied");
+        }
+
         log.info("[UserService] getUserByEmail: found email={}", email);
         return userMapper.toDto(user);
     }
 
     @Override
     @Transactional
-    @CachePut(value = "users", key = "#id")
-    public UserDto updateUser(Long id, UserUpdateDto dto) {
+    @CachePut(value = "users", key = "#id + '_' + #auth.name")
+    public UserDto updateUser(Authentication auth, Long id, UserUpdateDto dto) {
         log.info("[UserService] updateUser: id={}", id);
         User user = userRepository.findByIdWithCards(id)
                 .orElseThrow(() -> {
@@ -91,13 +112,10 @@ public class UserServiceImpl implements UserService {
                     return new NotFoundException("user with id " + id + " not found");
                 });
 
-        if (dto.getEmail() != null && !dto.getEmail().equals(user.getEmail())) {
-            userRepository.findByEmail(dto.getEmail()).ifPresent(u -> {
-                if (!u.getId().equals(id)) {
-                    log.warn("[UserService] updateUser: email={} already in use", dto.getEmail());
-                    throw new AlreadyExistsException("user with email " + dto.getEmail() + " already exists");
-                }
-            });
+        UserDto dtoUser = userMapper.toDto(user);
+        if (!accessChecker.canAccessUser(auth, dtoUser)) {
+            log.warn("[UserService] updateUser: access denied for email={}", auth.getName());
+            throw new AccessDeniedException("Access denied");
         }
 
         userMapper.updateEntityFromDto(dto, user);
@@ -115,7 +133,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "users", key = "#id")
+    @CacheEvict(value = "users", allEntries = true)
     public void deleteUser(Long id) {
         log.info("[UserService] deleteUser: id={}", id);
         User user = userRepository.findById(id)

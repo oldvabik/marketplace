@@ -17,13 +17,13 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
-                  name: username
+                  name: email
                   type: VARCHAR(100)
                   constraints:
                     nullable: false
         - createIndex:
-            indexName: idx_refresh_token_username
+            indexName: idx_refresh_token_email
             tableName: refresh_tokens
             columns:
               - column:
-                  name: username
+                  name: email
