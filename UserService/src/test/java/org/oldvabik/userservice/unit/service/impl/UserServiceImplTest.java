@@ -9,8 +9,11 @@ import org.oldvabik.userservice.entity.User;
 import org.oldvabik.userservice.exception.*;
 import org.oldvabik.userservice.mapper.UserMapper;
 import org.oldvabik.userservice.repository.UserRepository;
+import org.oldvabik.userservice.security.AccessChecker;
 import org.oldvabik.userservice.service.impl.UserServiceImpl;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -18,10 +21,15 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class UserServiceImplTest {
+
     @Mock
     private UserRepository userRepository;
     @Mock
     private UserMapper userMapper;
+    @Mock
+    private AccessChecker accessChecker;
+    @Mock
+    private Authentication auth;
     @InjectMocks
     private UserServiceImpl userService;
 
@@ -58,27 +66,41 @@ public class UserServiceImplTest {
     @Test
     void getUserById_found() {
         User user = new User();
+        user.setEmail("test@example.com");
         UserDto dto = new UserDto();
+        dto.setEmail("test@example.com");
 
         when(userRepository.findByIdWithCards(1L)).thenReturn(Optional.of(user));
         when(userMapper.toDto(user)).thenReturn(dto);
+        when(accessChecker.canAccessUser(any(Authentication.class), any(UserDto.class))).thenReturn(true);
 
-        UserDto result = userService.getUserById(1L);
+        UserDto result = userService.getUserById(auth, 1L);
         assertNotNull(result);
+    }
+
+    @Test
+    void getUserById_accessDenied() {
+        User user = new User();
+        user.setEmail("other@example.com");
+        UserDto dto = new UserDto();
+        dto.setEmail("other@example.com");
+
+        when(userRepository.findByIdWithCards(1L)).thenReturn(Optional.of(user));
+        when(userMapper.toDto(user)).thenReturn(dto);
+        when(accessChecker.canAccessUser(any(Authentication.class), any(UserDto.class))).thenReturn(false);
+
+        assertThrows(AccessDeniedException.class, () -> userService.getUserById(auth, 1L));
     }
 
     @Test
     void getUserById_notFound() {
         when(userRepository.findByIdWithCards(1L)).thenReturn(Optional.empty());
-
-        assertThrows(NotFoundException.class, () -> userService.getUserById(1L));
+        assertThrows(NotFoundException.class, () -> userService.getUserById(auth, 1L));
     }
 
     @Test
     void getAllUsers_returnsList() {
-        when(userRepository.findAllWithCards(any())).thenReturn(
-                new PageImpl<>(List.of(new User()))
-        );
+        when(userRepository.findAllWithCards(any())).thenReturn(new PageImpl<>(List.of(new User())));
         when(userMapper.toDto(any())).thenReturn(new UserDto());
 
         var result = userService.getAllUsers(0, 10);
@@ -88,55 +110,74 @@ public class UserServiceImplTest {
     @Test
     void getUserByEmail_found() {
         User user = new User();
+        user.setEmail("test@example.com");
         UserDto dto = new UserDto();
+        dto.setEmail("test@example.com");
 
-        when(userRepository.findByEmailWithCards("email@test.com")).thenReturn(Optional.of(user));
+        when(userRepository.findByEmailWithCards("test@example.com")).thenReturn(Optional.of(user));
         when(userMapper.toDto(user)).thenReturn(dto);
+        when(accessChecker.canAccessUser(any(Authentication.class), any(UserDto.class))).thenReturn(true);
 
-        UserDto result = userService.getUserByEmail("email@test.com");
+        UserDto result = userService.getUserByEmail(auth, "test@example.com");
         assertNotNull(result);
+    }
+
+    @Test
+    void getUserByEmail_accessDenied() {
+        User user = new User();
+        user.setEmail("other@example.com");
+        UserDto dto = new UserDto();
+        dto.setEmail("other@example.com");
+
+        when(userRepository.findByEmailWithCards("other@example.com")).thenReturn(Optional.of(user));
+        when(userMapper.toDto(user)).thenReturn(dto);
+        when(accessChecker.canAccessUser(any(Authentication.class), any(UserDto.class))).thenReturn(false);
+
+        assertThrows(AccessDeniedException.class, () -> userService.getUserByEmail(auth, "other@example.com"));
     }
 
     @Test
     void getUserByEmail_notFound() {
         when(userRepository.findByEmailWithCards("email@test.com")).thenReturn(Optional.empty());
-        assertThrows(NotFoundException.class, () -> userService.getUserByEmail("email@test.com"));
+        assertThrows(NotFoundException.class, () -> userService.getUserByEmail(auth, "email@test.com"));
     }
 
     @Test
     void updateUser_success() {
         Long id = 1L;
         UserUpdateDto dto = new UserUpdateDto();
-        dto.setEmail("new@test.com");
+        dto.setName("NewName");
+        dto.setSurname("NewSurname");
         User user = new User();
         user.setId(id);
+        UserDto dtoUser = new UserDto();
         User savedUser = new User();
         savedUser.setId(id);
         UserDto userDto = new UserDto();
 
         when(userRepository.findByIdWithCards(id)).thenReturn(Optional.of(user));
-        when(userRepository.findByEmail(dto.getEmail())).thenReturn(Optional.empty());
+        when(userMapper.toDto(user)).thenReturn(dtoUser);
+        when(accessChecker.canAccessUser(any(Authentication.class), any(UserDto.class))).thenReturn(true);
         when(userRepository.save(user)).thenReturn(savedUser);
         when(userMapper.toDto(savedUser)).thenReturn(userDto);
 
-        UserDto result = userService.updateUser(id, dto);
+        UserDto result = userService.updateUser(auth, id, dto);
         assertNotNull(result);
     }
 
     @Test
-    void updateUser_emailConflict_throwsException() {
+    void updateUser_accessDenied() {
         Long id = 1L;
         UserUpdateDto dto = new UserUpdateDto();
-        dto.setEmail("exists@test.com");
         User user = new User();
         user.setId(id);
-        User other = new User();
-        other.setId(2L);
+        UserDto dtoUser = new UserDto();
 
         when(userRepository.findByIdWithCards(id)).thenReturn(Optional.of(user));
-        when(userRepository.findByEmail(dto.getEmail())).thenReturn(Optional.of(other));
+        when(userMapper.toDto(user)).thenReturn(dtoUser);
+        when(accessChecker.canAccessUser(any(Authentication.class), any(UserDto.class))).thenReturn(false);
 
-        assertThrows(AlreadyExistsException.class, () -> userService.updateUser(id, dto));
+        assertThrows(AccessDeniedException.class, () -> userService.updateUser(auth, id, dto));
     }
 
     @Test

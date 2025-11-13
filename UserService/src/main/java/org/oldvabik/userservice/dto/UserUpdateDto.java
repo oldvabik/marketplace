@@ -1,6 +1,5 @@
 package org.oldvabik.userservice.dto;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -16,7 +15,4 @@ public class UserUpdateDto {
 
     @Past
     private LocalDate birthDate;
-
-    @Email
-    private String email;
 }
